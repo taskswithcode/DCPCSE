@@ -7,6 +7,12 @@ from prettytable import PrettyTable
 import torch
 import transformers
 from transformers import AutoConfig, AutoTokenizer
+#from dcpcse.models import RobertaForCL, BertForCL
+
+CURR_DIR = os.path.dirname(os.path.abspath(__file__))
+print(CURR_DIR)
+sys.path.append(CURR_DIR)
+
 from dcpcse.models import RobertaForCL, BertForCL
 from scipy.spatial.distance import cosine
 import pdb
@@ -16,20 +22,23 @@ def read_text(input_file):
     arr = open(input_file).read().split("\n")
     return arr[:-1]
 
-class DCPSCEModel:
+class DCPCSEModel:
     def __init__(self):
         self.model = None
         self.tokenizer = None
+        self.debug  = False
+        print("In DCPCSE Constructor")
 
-    def init_model(self):
+    def init_model(self,model_name = None):
         # Load transformers' model checkpoint
+        model_name = "models/large" if model_name is None else model_name
         args = construct_args()
-        config = AutoConfig.from_pretrained(args.model_name_or_path)
+        config = AutoConfig.from_pretrained(model_name)
     
         #if 'roberta' in args.model_name_or_path:
         self.model = RobertaForCL.from_pretrained(
-                args.model_name_or_path,
-                from_tf=bool(".ckpt" in args.model_name_or_path),
+                model_name,
+                from_tf=bool(".ckpt" in model_name),
                 config=config,
                 cache_dir=args.cache_dir,
                 revision=args.model_revision,
@@ -38,7 +47,7 @@ class DCPSCEModel:
             )
 
     
-        self.tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.model = self.model.to(self.device)
     
@@ -71,8 +80,9 @@ class DCPSCEModel:
 
         print("Input sentence:",texts[0])
         sorted_dict = dict(sorted(cosine_dict.items(), key=lambda item: item[1],reverse = True))
-        for key in sorted_dict:
-            print("Cosine similarity with  \"%s\" is: %.3f" % (key, sorted_dict[key]))
+        if (self.debug):
+            for key in sorted_dict:
+                print("Cosine similarity with  \"%s\" is: %.3f" % (key, sorted_dict[key]))
         if (output_file is not None):
             with open(output_file,"w") as fp:
                 fp.write(json.dumps(sorted_dict))
@@ -85,7 +95,7 @@ def construct_args():
             help="Output file .")
     parser.add_argument("--input", type=str, default="small_test.txt",
             help="Input test file .")
-    parser.add_argument("--model_name_or_path", type=str,default="models",
+    parser.add_argument("--model_name_or_path", type=str,default="models/large",
             help="Transformers' model name or path")
     parser.add_argument("--pooler_type", type=str, 
             choices=['cls', 'cls_before_pooler', 'avg', 'avg_top2', 'avg_first_last'], 
@@ -145,8 +155,8 @@ def construct_args():
 
 def main():
     args = construct_args()
-    obj = DCPSCEModel()
-    obj.init_model()
+    obj = DCPCSEModel()
+    obj.init_model(args.model_name_or_path)
     texts,embeddings = obj.compute_embeddings(args.input,True)
     results = obj.output_results(args.output,texts,embeddings)
     
