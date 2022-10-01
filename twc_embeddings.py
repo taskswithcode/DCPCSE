@@ -51,7 +51,7 @@ class DCPCSEModel:
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.model = self.model.to(self.device)
     
-    def compute_embeddings(self,input_data,is_file):
+    def compute_embeddings(self,input_file_name,input_data,is_file):
         texts = read_text(input_data) if is_file == True else input_data
         batch = self.tokenizer.batch_encode_plus(
             texts,
@@ -157,7 +157,7 @@ def main():
     args = construct_args()
     obj = DCPCSEModel()
     obj.init_model(args.model_name_or_path)
-    texts,embeddings = obj.compute_embeddings(args.input,True)
+    texts,embeddings = obj.compute_embeddings(args.input,args.input,True)
     results = obj.output_results(args.output,texts,embeddings)
     
 
